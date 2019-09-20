@@ -1,0 +1,53 @@
+# Starter pipeline
+
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  branches:
+    include:
+      - desarrollo
+      - preproduccion
+      - produccion
+  paths:
+    exclude:
+      - azure-pipelines.yml 
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: APIM/APIM
+      ref: refs/heads/YAML
+
+stages:
+  - stage: Build
+    jobs:
+      - template: job_template.yml@templates
+
+  - stage: Build_Format
+    jobs:
+    - job: A
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+      - bash: |
+            ls -la
+            cat Meta-information/api.json| jq -r .version
+            apiVersion=$(cat Meta-information/api.json| jq -r .version)
+            echo "##vso[task.setvariable variable=apiVersion;isOutput=true]$apiVersion"
+        name: setVar
+      - bash: |
+          echo "********" $(setVar.apiVersion)
+    - job: B
+      dependsOn: A
+      variables:
+        apiVersion: $[ dependencies.A.outputs['setVar.apiVersion'] ]
+        Revision: $[counter(variables['apiVersion'], 0)]
+      steps:
+        - bash: |
+            echo "***********" $(apiVersion)
+            buildNumber=$(apiVersion).$(Revision)
+            echo "##vso[build.updatebuildnumber]$buildNumber"
+
